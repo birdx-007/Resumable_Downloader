@@ -1,0 +1,44 @@
+﻿<Window x:Class="WpfApp1.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfApp1"
+        mc:Ignorable="d"
+        Title="BirdDownloader" Height="640" Width="960">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="54*"/>
+            <RowDefinition Height="72*"/>
+        </Grid.RowDefinitions>
+        <Grid.DataContext>
+            <local:DownloadViewModel/>
+        </Grid.DataContext>
+        <GroupBox Header="下载设置" Margin="20,20,20,10">
+            <DockPanel LastChildFill="False" Background="AliceBlue">
+                <DockPanel DockPanel.Dock="Top">
+                    <TextBlock DockPanel.Dock="Left" TextAlignment="Center" FontSize="20" Text="下载链接" Margin="20,20,0,10" Width="100"/>
+                    <TextBox FontSize="20" DockPanel.Dock="Left" HorizontalAlignment="Left" Margin="10,20,0,10" TextWrapping="Wrap" Text="{Binding Url}" Width="730" Height="30"/>
+                </DockPanel>
+                <DockPanel DockPanel.Dock="Top">
+                    <TextBlock DockPanel.Dock="Left" TextAlignment="Center" FontSize="20" Text="下载目录" Margin="20,10,0,10" Width="100"/>
+                    <TextBox FontSize="20" DockPanel.Dock="Left" HorizontalAlignment="Left" Margin="10,10,0,10" TextWrapping="Wrap" Text="{Binding DirPath}" Width="615" Height="30"/>
+                    <Button FontSize="20" DockPanel.Dock="Left" Width="100" Height="30" Margin="10,10,30,10" Content="预览" Command="{Binding DownloadChoose}" CommandParameter="{Binding}"/>
+                </DockPanel>
+                <DockPanel DockPanel.Dock="Top">
+					<Button FontSize="22" Width="150" Height="50" Margin="60 15 35 15" DockPanel.Dock="Right" Content="取消" Command="{Binding DownloadCancel}" CommandParameter="{Binding}"/>
+                    <Button FontSize="22" Width="150" Height="50" Margin="60 15 0 15" DockPanel.Dock="Right" Content="{Binding PauseText}" Command="{Binding DownloadPause}" CommandParameter="{Binding}" IsEnabled="{Binding PauseEnable}"/>
+                    <Button FontSize="22" Width="150" Height="50" Margin="30 15 0 15" DockPanel.Dock="Right" Content="下载" Command="{Binding DownloadStart}" CommandParameter="{Binding}" IsEnabled="{Binding DownloadEnable}"/>
+                    <Rectangle Width="200"/>
+                </DockPanel>
+            </DockPanel>
+        </GroupBox>
+        <GroupBox Header="下载状态" Margin="20,10,20,20" Grid.Row="1">
+            <DockPanel LastChildFill="False" Background="AliceBlue">
+                <TextBlock Height="32" Width="250" Margin="0 70 0 0" DockPanel.Dock="Top" Text="{Binding State}" TextAlignment="Center" FontSize="25"/>
+                <ProgressBar Height="40" Margin="50 30 50 0" DockPanel.Dock="Top" Value="{Binding ProgressValue}" Maximum="{Binding MaxProgressValue}"/>
+                <TextBlock Height="26" Width="250" Margin="0 20 0 0" DockPanel.Dock="Top" Text="{Binding Speed}" TextAlignment="Center" FontSize="20"/>
+            </DockPanel>
+        </GroupBox>
+    </Grid>
+</Window>
