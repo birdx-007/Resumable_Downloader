@@ -138,6 +138,27 @@ namespace WpfApp1
             HttpWebResponse response = request.GetResponse() as HttpWebResponse;
             string fileName = response.ResponseUri.Segments.Last();
             string filePathName = Path.Combine(DirPath, fileName);
+            if (File.Exists(filePathName))
+            {
+                MessageBoxResult result =
+                    MessageBox.Show("已存在重名文件。是否覆盖？\nFile Exists. Overwrite?",
+                    "Bird's Warning",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (result == MessageBoxResult.No)
+                {
+                    isDownloading = false;
+                    isPausing = false;
+                    response.Close();
+                    State = "Idle";
+                    Speed = "0.00 Bps";
+                    DownloadEnable = true;
+                    PauseEnable = false;
+                    PauseText = "暂停";
+                    return;
+                }
+                File.Delete(filePathName);
+            }
             tempFilePathName = filePathName + ".tmp";
             MaxProgressValue = response.ContentLength;
             //检查是否可断点续传
@@ -162,7 +183,6 @@ namespace WpfApp1
                 Speed = calculateSpeed(bits);
             }, null, 0, 1000);
             PauseEnable = true;
-            State = "Downloading...";
             int readLen = stream.Read(buffer, 0, buffer.Length);
             while(readLen>0)
             {
@@ -180,6 +200,7 @@ namespace WpfApp1
                     cancellationTokenSource = null;
                     DownloadEnable = true;
                     PauseEnable = false;
+                    PauseText = "暂停";
                     MessageBox.Show("下载已取消。\nDownload Cancelled.",
                         "Bird's Message",
                         MessageBoxButton.OK,
@@ -195,6 +216,7 @@ namespace WpfApp1
                 {
                     System.Threading.Thread.Sleep(100);
                 }
+                State = "Downloading...";
                 readLen = stream.Read(buffer, 0, buffer.Length);
             }
             //下载完成
@@ -234,11 +256,41 @@ namespace WpfApp1
             DownloadEnable = false;
             PauseEnable = false;
             //实例化取消模块
-            cancellationTokenSource = new CancellationTokenSource();
+            if (cancellationTokenSource == null)
+            {
+                cancellationTokenSource = new CancellationTokenSource();
+            }
             //单线程后台下载
             isDownloading = true;
             isPausing = false;
-            downloadThread = new Thread(Download);
+            downloadThread = new Thread(() =>
+            {
+                threadBegin:
+                try
+                {
+                    Download();
+                }
+                catch
+                {
+                    isDownloading = false;
+                    isPausing=false;
+                    State = "Idle";
+                    Speed = "0.00 Bps";
+                    ProgressValue = lastProgressValue = 0;
+                    DownloadEnable = true;
+                    PauseEnable = false;
+                    PauseText = "暂停";
+                    MessageBoxResult result =
+                        MessageBox.Show("下载失败。尝试重新下载？\nDownload Failed. Retry?",
+                        "Bird's Message",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Error);
+                    if(result == MessageBoxResult.Yes)
+                    {
+                        goto threadBegin;
+                    }
+                }
+            });
             downloadThread.IsBackground = true;
             downloadThread.Start();
         }
@@ -259,7 +311,10 @@ namespace WpfApp1
                 MessageBoxImage.Warning);
             if(result == MessageBoxResult.No)
             {
-                isPausing = false;
+                if (PauseText == "暂停")
+                {
+                    isPausing = false;
+                }
                 return;
             }
             if (cancellationTokenSource != null) cancellationTokenSource.Cancel();

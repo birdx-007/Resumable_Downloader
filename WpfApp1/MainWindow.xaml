@@ -5,7 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfApp1"
         mc:Ignorable="d"
-        Title="BirdDownloader" Height="640" Width="960">
+        Title="BirdDownloader" Height="640" Width="960"
+        WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
+        MaxHeight="640" MinHeight="640" MaxWidth="960" MinWidth="960">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="54*"/>
@@ -26,7 +28,7 @@
                     <Button FontSize="20" DockPanel.Dock="Left" Width="100" Height="30" Margin="10,10,30,10" Content="预览" Command="{Binding DownloadChoose}" CommandParameter="{Binding}"/>
                 </DockPanel>
                 <DockPanel DockPanel.Dock="Top">
-					<Button FontSize="22" Width="150" Height="50" Margin="60 15 35 15" DockPanel.Dock="Right" Content="取消" Command="{Binding DownloadCancel}" CommandParameter="{Binding}"/>
+                    <Button FontSize="22" Width="150" Height="50" Margin="60 15 35 15" DockPanel.Dock="Right" Content="取消" Command="{Binding DownloadCancel}" CommandParameter="{Binding}"/>
                     <Button FontSize="22" Width="150" Height="50" Margin="60 15 0 15" DockPanel.Dock="Right" Content="{Binding PauseText}" Command="{Binding DownloadPause}" CommandParameter="{Binding}" IsEnabled="{Binding PauseEnable}"/>
                     <Button FontSize="22" Width="150" Height="50" Margin="30 15 0 15" DockPanel.Dock="Right" Content="下载" Command="{Binding DownloadStart}" CommandParameter="{Binding}" IsEnabled="{Binding DownloadEnable}"/>
                     <Rectangle Width="200"/>
