@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfApp1"
+        xmlns:conditionalxaml="clr-namespace:ConditionalXaml"
         mc:Ignorable="d"
         Title="BirdDownloader" Height="640" Width="960"
         WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
@@ -36,10 +37,23 @@
             </DockPanel>
         </GroupBox>
         <GroupBox Header="下载状态" Margin="20,10,20,20" Grid.Row="1">
-            <DockPanel LastChildFill="False" Background="AliceBlue">
-                <TextBlock Height="32" Width="250" Margin="0 70 0 0" DockPanel.Dock="Top" Text="{Binding State}" TextAlignment="Center" FontSize="25"/>
-                <ProgressBar Height="40" Margin="50 30 50 0" DockPanel.Dock="Top" Value="{Binding ProgressValue}" Maximum="{Binding MaxProgressValue}"/>
-                <TextBlock Height="26" Width="250" Margin="0 20 0 0" DockPanel.Dock="Top" Text="{Binding Speed}" TextAlignment="Center" FontSize="20"/>
+            <DockPanel LastChildFill="True">
+                <conditionalxaml:Condition>
+                    <conditionalxaml:Condition.IsDebug>
+                        <DockPanel DockPanel.Dock="Left" LastChildFill="False" Background="WhiteSmoke">
+                            <TextBlock DockPanel.Dock="Top" Height="20" Width="80" Margin="20 10 0 0" Text="Debug消息" HorizontalAlignment="Left"/>
+                            <TextBox Width="220" Margin="20 5 20 20" Text="{Binding Debug}" FontSize="15" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Focusable="False" Background="White"/>
+                        </DockPanel>
+                    </conditionalxaml:Condition.IsDebug>
+                    <conditionalxaml:Condition.IsNotDebug>
+                        <DockPanel Width="0"/>
+                    </conditionalxaml:Condition.IsNotDebug>
+                </conditionalxaml:Condition>
+				 <DockPanel DockPanel.Dock="Left" LastChildFill="False" Background="AliceBlue">
+                    <TextBlock Height="32" Width="600" Margin="0 70 0 0" DockPanel.Dock="Top" Text="{Binding State}" TextAlignment="Center" FontSize="25"/>
+                    <ProgressBar Height="30" Margin="50 30 50 0" DockPanel.Dock="Top" Value="{Binding ProgressValue}" Maximum="{Binding MaxProgressValue}"/>
+                    <TextBlock Height="26" Width="650" Margin="0 20 0 0" DockPanel.Dock="Top" Text="{Binding Speed}" TextAlignment="Center" FontSize="20"/>
+                </DockPanel>
             </DockPanel>
         </GroupBox>
     </Grid>

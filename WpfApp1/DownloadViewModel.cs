@@ -1,14 +1,31 @@
-﻿using Microsoft.WindowsAPICodePack.Dialogs;
+﻿#define DEBUG
+using Microsoft.WindowsAPICodePack.Dialogs;
 using Prism.Commands;
 using Prism.Mvvm;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Windows;
-using System.Windows.Documents;
+using System.Windows.Markup;
+
+namespace ConditionalXaml
+{
+    public class Condition : MarkupExtension //xaml条件编译用
+    {
+        public object IsDebug { get; set; }
+        public object IsNotDebug { get; set; }
+        public override object ProvideValue(IServiceProvider sp)
+        {
+#if DEBUG
+            return this.IsDebug;
+#else
+            return this.IsNotDebug;
+#endif
+        }
+    }
+}
 
 namespace WpfApp1
 {
@@ -16,12 +33,26 @@ namespace WpfApp1
     {
         public DownloadViewModel()
         {
+#if DEBUG
+            Debug += "start!\n";
+#endif
             _downloadstart = null;
             _downloadcancel = null;
+            _downloadpause = null;
+            _downloadchoose = null;
         }
         private static readonly int BufferSize = 1024;
         private bool isDownloading = false;//是否正在下载
         private bool isPausing = false;//是否正在暂停
+#if DEBUG
+        private string debug = "";//调试信息
+        public string Debug
+        {
+            get { return debug; }
+            set { if (debug != value) { debug = value; RaisePropertyChanged(); } }
+
+        }
+#endif
         private string url = "https://cloud.tsinghua.edu.cn/f/336aab4292e04d43a800/?dl=1";//url
         public string Url
         {
@@ -35,6 +66,7 @@ namespace WpfApp1
             get { return dirPath; }
             set { if (dirPath != value) { dirPath = value; RaisePropertyChanged(); } }
         }
+        private Thread mainThread = Thread.CurrentThread;//主线程/窗口线程
         private Thread? downloadThread = null;//下载用线程
         private bool downloadEnable = true;//下载按键是否有效
         public bool DownloadEnable
@@ -94,7 +126,7 @@ namespace WpfApp1
         {
             get
             {
-                if (_downloadstart == null) _downloadstart = new DelegateCommand(() => Start());
+                _downloadstart ??= new DelegateCommand(() => Start());
                 return _downloadstart;
             }
         }
@@ -103,7 +135,7 @@ namespace WpfApp1
         {
             get
             {
-                if (_downloadcancel == null) _downloadcancel = new DelegateCommand(() => Cancel());
+                _downloadcancel ??= new DelegateCommand(() => Cancel());
                 return _downloadcancel;
             }
         }
@@ -112,7 +144,7 @@ namespace WpfApp1
         {
             get
             {
-                if (_downloadpause == null) _downloadpause = new DelegateCommand(() => PauseResume());
+                _downloadpause ??= new DelegateCommand(() => PauseResume());
                 return _downloadpause;
             }
         }
@@ -164,7 +196,7 @@ namespace WpfApp1
             //检查是否可断点续传
             request = WebRequest.Create(Url) as HttpWebRequest;
             FileMode mode = FileMode.Create;//新文件或追加原文件
-            if (ProgressValue > 0 || File.Exists(tempFilePathName))
+            if (ProgressValue > 0 || File.Exists(tempFilePathName))//断点续传
             {
                 FileInfo fn = new FileInfo(tempFilePathName);
                 request.AddRange(fn.Length);
@@ -172,6 +204,9 @@ namespace WpfApp1
                 mode = FileMode.Append;
             }
             //下载正式开始
+#if DEBUG
+            Debug += String.Format("Start! Current thread: {0}\n", Thread.CurrentThread.ManagedThreadId);
+#endif
             response = request.GetResponse() as HttpWebResponse;
             Stream stream = response.GetResponseStream();
             FileStream fileStream = new FileStream(tempFilePathName, mode);
@@ -184,17 +219,44 @@ namespace WpfApp1
             }, null, 0, 1000);
             PauseEnable = true;
             int readLen = stream.Read(buffer, 0, buffer.Length);
+            Timer timeoutTimer = new Timer(delegate
+            {
+                //网络超时
+#if DEBUG
+                Debug += String.Format("Timeout! Current thread: {0}\n", Thread.CurrentThread.ManagedThreadId);
+#endif
+                isDownloading = false;
+                isPausing = false;
+                stream.Close();
+                fileStream.Close();
+                response.Close();
+                State = "Idle";
+                Speed = "0.00 Bps";
+                timer.Dispose();
+                ProgressValue = lastProgressValue = 0;
+                DownloadEnable = true;
+                PauseEnable = false;
+                MessageBox.Show("网络超时。\nWeb Timeout.",
+                    "Bird's Message",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning,
+                    MessageBoxResult.OK);
+            }, null, Timeout.Infinite, Timeout.Infinite);
             while(readLen>0)
             {
                 //下载被取消
                 if (cancellationTokenSource.IsCancellationRequested)
                 {
+#if DEBUG
+                    Debug += String.Format("Cancel! Current thread: {0}\n", Thread.CurrentThread.ManagedThreadId);
+#endif
                     isPausing = false;
                     ProgressValue = 0;
                     MaxProgressValue = 10;
                     State = "Idle";
                     Speed = "0.00 Bps";
                     timer.Dispose();
+                    timeoutTimer.Dispose();
                     fileStream.Dispose();
                     File.Delete(tempFilePathName);
                     cancellationTokenSource = null;
@@ -214,12 +276,17 @@ namespace WpfApp1
                 //有点忙等待的写法，用于暂停、暂停时取消、取消时的停止下载效果，尚可改进
                 while (isPausing && isDownloading)
                 {
-                    System.Threading.Thread.Sleep(100);
+                    Thread.Sleep(100);
                 }
                 State = "Downloading...";
+                timeoutTimer.Change(10000, Timeout.Infinite);
                 readLen = stream.Read(buffer, 0, buffer.Length);
+                timeoutTimer.Change(Timeout.Infinite, Timeout.Infinite);
             }
             //下载完成
+#if DEBUG
+            Debug += String.Format("Complete! Current thread: {0}\n", Thread.CurrentThread.ManagedThreadId);
+#endif
             isDownloading = false;
             isPausing = false;
             stream.Close();
@@ -228,6 +295,7 @@ namespace WpfApp1
             State = "Idle";
             Speed = "0.00 Bps";
             timer.Dispose();
+            timeoutTimer.Dispose();
             File.Move(tempFilePathName, filePathName);
             ProgressValue = lastProgressValue = 0;
             DownloadEnable = true;
@@ -256,10 +324,7 @@ namespace WpfApp1
             DownloadEnable = false;
             PauseEnable = false;
             //实例化取消模块
-            if (cancellationTokenSource == null)
-            {
-                cancellationTokenSource = new CancellationTokenSource();
-            }
+            cancellationTokenSource ??= new CancellationTokenSource();
             //单线程后台下载
             isDownloading = true;
             isPausing = false;
@@ -270,7 +335,7 @@ namespace WpfApp1
                 {
                     Download();
                 }
-                catch
+                catch(Exception ex)
                 {
                     isDownloading = false;
                     isPausing=false;
@@ -280,6 +345,9 @@ namespace WpfApp1
                     DownloadEnable = true;
                     PauseEnable = false;
                     PauseText = "暂停";
+#if DEBUG
+                    Debug += String.Format("Exception: {0}\n", ex.Message);
+#endif
                     MessageBoxResult result =
                         MessageBox.Show("下载失败。尝试重新下载？\nDownload Failed. Retry?",
                         "Bird's Message",
@@ -327,12 +395,18 @@ namespace WpfApp1
         {
             if(PauseText=="暂停")
             {
+#if DEBUG
+                Debug += String.Format("Pause! Current thread: {0}\n", Thread.CurrentThread.ManagedThreadId);
+#endif
                 isPausing = true;
                 State = "Pausing";
                 PauseText = "继续";
             }
             else
             {
+#if DEBUG
+                Debug += String.Format("Resume! Current thread: {0}\n", Thread.CurrentThread.ManagedThreadId);
+#endif
                 isPausing = false;
                 State = "Resuming";
                 PauseText = "暂停";
